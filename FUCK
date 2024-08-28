@@ -1,0 +1,22 @@
+#!/bin/bash
+
+# Check if the correct number of arguments is passed
+if [ "$#" -ne 3 ]; then
+    echo "Usage: $0 <ip> <port> <time>"
+    exit 1
+fi
+
+# Assign parameters to variables
+IP=$1
+PORT=$2
+TIME=$3
+
+# Run each file with the parameters
+./VC-VB "$IP" "$PORT" "$TIME" "100"
+./VC-V0 "$IP" "$PORT" "$TIME" "100"
+./VC-V1 "$IP" "$PORT" "$TIME" "100"
+./VC-V2 "$IP" "$PORT" "$TIME" "100"
+./VC-V3 "$IP" "$PORT" "$TIME" "100"
+./VC-V4 "$IP" "$PORT" "$TIME" "100"
+./VC-V5.1 "$IP" "$PORT" "$TIME" "100"
+./VC-V5.2 "$IP" "$PORT" "$TIME" "100"
