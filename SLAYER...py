@@ -28,7 +28,7 @@ async def run_attack_command_async(target_ip, target_port, duration):
     global attack_processes
     try:
         # List of files to execute
-        attack_files = ["./FUCK"]
+        attack_files = ["./VC-V0", "./VC-V1", "./VC-V2", "./VC-V3", "./VC-V4", "./VC-V5.1", "./VC-V5.2", "./VC-VB"]
 
         # Start multiple attack processes
         attack_processes = []
