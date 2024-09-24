@@ -33,7 +33,7 @@ async def run_attack_command_async(target_ip, target_port, duration):
         # Start multiple attack processes
         attack_processes = []
         for file in attack_files:
-            command = f"{file} {target_ip} {target_port} {duration}"
+            command = f"{file} {target_ip} {target_port} {duration} 90"
             logging.info(f"Executing: {command}")
             
             # Execute the command
@@ -72,9 +72,9 @@ def send_welcome(message):
         # Create the keyboard layout
         markup = ReplyKeyboardMarkup(row_width=2, resize_keyboard=True, one_time_keyboard=True)
         
-        # Wider buttons for Record and Increase Duration
+        # Wider buttons for Record and Change Duration
         btn1 = KeyboardButton("Record 📝")
-        btn4 = KeyboardButton("Increase Duration ⏱")
+        btn4 = KeyboardButton("Change Duration ⏱")
         
         # Side-by-side buttons for Start Attack and Stop Attack
         btn2 = KeyboardButton("Start Attack 💥")
@@ -108,7 +108,7 @@ def handle_message(message):
             stop_attack()
             bot.send_message(message.chat.id, "*Attack stopped successfully.*", parse_mode='Markdown')
 
-        elif message.text == "Increase Duration ⏱":
+        elif message.text == "Change Duration ⏱":
             bot.send_message(message.chat.id, "*Enter the new default duration (in seconds):*", parse_mode='Markdown')
             bot.register_next_step_handler(message, set_default_duration)
 
